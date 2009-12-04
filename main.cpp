@@ -23,7 +23,7 @@ int main() {
     
     vfloat * vf = new vfloat;
     
-    std::vector<vfloat> vec(3);
+    std::vector<vfloat> vec(4);
     each_with_vfloat(vec, x, i) { x = 1337 + i; }
     each(vec, x) {
         std::cout << "vec:x=" << x << std::endl;
