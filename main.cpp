@@ -4,13 +4,6 @@
 #include "macrobe.h"
 
 int main() {
-    /*
-    float data[100];
-    for (int i = 0; i < 100; i++) {
-        data[i] *= 4.0;
-    }
-    */
-    
     vfloat v(1,2,3,4);
     std::cout << "sizeof(v) = " << sizeof(v) << std::endl;
     std::cout << "sizeof(__m128) = " << sizeof(__m128) << std::endl;
@@ -20,13 +13,11 @@ int main() {
     v += 1000.0;
     std::cout << "v = " << v << std::endl;
     
-    //*
     vfloat data[25];
     each_n_with_vfloat(data, 25, x, i) { x = i + 10.0; }
     each_n(data, 25, x) {
         std::cout << "x = " << x << std::endl;
     }
-    //*/
     
     std::vector<float> vec(3);
     each_with_index(vec, x, i) { x = 1337 + i; }

@@ -30,4 +30,4 @@
 #define each_n_with_vfloat(_each_obj, n, var, vf) \
     let (vfloat vf = vfloat(0,1,2,3)) \
     for (size_t _each_i = 0; _each_i < n; vf += 4, _each_i++) \
-    let (typeof(_each_obj[0]) & var = _each_obj[_each_i]) \
+    let (typeof(_each_obj[0]) & var = _each_obj[_each_i])
