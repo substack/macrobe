@@ -13,14 +13,18 @@ int main() {
     v += 1000.0;
     std::cout << "v = " << v << std::endl;
     
+    /*
     vfloat data[25];
     each_n_with_vfloat(data, 25, x, i) { x = i + 10.0; }
     each_n(data, 25, x) {
         std::cout << "x = " << x << std::endl;
     }
+    */
     
-    std::vector<float> vec(3);
-    each_with_index(vec, x, i) { x = 1337 + i; }
+    vfloat * vf = new vfloat;
+    
+    std::vector<vfloat> vec(3);
+    each_with_vfloat(vec, x, i) { x = 1337 + i; }
     each(vec, x) {
         std::cout << "vec:x=" << x << std::endl;
     }
