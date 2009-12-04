@@ -23,6 +23,12 @@
     for (size_t iter = 0; iter < _each_size; iter++) \
     let(typeof(_each_obj[0]) & var = _each_obj[iter])
 
+#define each_with_vfloat(_each_obj, var, vf) \
+    let(size_t _each_size = _each_obj.size()) \
+    let (vfloat vf = vfloat(0,1,2,3)) \
+    for (size_t _each_i = 0; _each_i < _each_size; vf += 4, _each_i++) \
+    let (typeof(_each_obj[0]) & var = _each_obj[_each_i])
+
 #define each_n_with_index(_each_obj, n, var, iter) \
     for (size_t iter = 0; iter < n; iter++) \
     let(typeof(_each_obj[0]) & var = _each_obj[iter])
