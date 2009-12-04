@@ -10,6 +10,14 @@
         return *(vfloat *) &(vec OP v); \
     }
 
+#define vfloat_operator(OP) \
+    vfloat operator OP (const float f) { \
+        return vfloat(vec OP _mm_set1_ps(f)); \
+    } \
+    vfloat operator OP (const __m128 v) { \
+        return vfloat(vec OP v); \
+    }
+
 struct vfloat {
     __m128 vec;
     
@@ -56,13 +64,10 @@ struct vfloat {
     vfloat_update_operator(+=)
     vfloat_update_operator(-=)
     
-    vfloat operator+(const float f) {
-        return vfloat(vec + _mm_set1_ps(f));
-    }
-    
-    vfloat operator-(const float f) {
-        return vfloat(vec - _mm_set1_ps(f));
-    }
+    vfloat_operator(*)
+    vfloat_operator(/)
+    vfloat_operator(+)
+    vfloat_operator(-)
 };
 
 // super convenient ostream instance
