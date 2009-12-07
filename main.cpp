@@ -5,7 +5,8 @@ int main() {
     List<int> xs = makeList(int,10,11,12,13,14);
     xs
         | map(int, x, x + 1)
-        | each(int, x, std::cout << x << std::endl);
+        | filter(int, x, x % 2 == 0)
+        | each(int, x, std::cout << "x=" << x << std::endl);
     
     return 0;
 }

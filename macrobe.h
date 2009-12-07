@@ -1,10 +1,6 @@
 #include <iostream>
 #include <cstring>
 
-#define let(...) \
-    if (int _let_flip = 1) \
-    for (__VA_ARGS__; _let_flip == 1; _let_flip = 0)
-
 #define va_length(T, ...) \
     (sizeof va_array(T, __VA_ARGS__)) / (sizeof va_array(T, __VA_ARGS__)[0])
 
@@ -36,6 +32,10 @@ public:
     
     size_t size() {
         return size_;
+    }
+    
+    void resize(size_t s) {
+        size_ = s;
     }
     
     iterator begin() {
@@ -83,7 +83,29 @@ List<T> List<T>::anchor;
             _imap_end = List<T>::anchor.end(); \
         _imap_i != _imap_end; ++_imap_i \
     ) { \
-        T & var = *_imap_i; \
+        const T var = *_imap_i; \
         expr; \
+    } \
+    List<T>::anchor
+
+#define filter(T, var, expr) \
+    ListPipe(); \
+    for ( \
+        List<T>::iterator \
+            _imap_m = List<T>::anchor.begin(), \
+            _imap_i = List<T>::anchor.begin(), \
+            _imap_end = List<T>::anchor.end(); \
+        _imap_i != _imap_end; ++_imap_i \
+    ) { \
+        const T var = *_imap_i; \
+        if (expr) { \
+            *_imap_m = var; \
+            ++_imap_m; \
+        } \
+        if (_imap_i == _imap_end - 1) { \
+            List<T>::anchor.resize( \
+                List<T>::anchor.size() + _imap_m - _imap_i - 1 \
+            ); \
+        } \
     } \
     List<T>::anchor
