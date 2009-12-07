@@ -19,6 +19,7 @@ class List {
     T *data;
     size_t size_;
 public:
+    bool _temporary;
     typedef T* iterator;
     
     List() {}
@@ -71,7 +72,11 @@ public:
     }
     
     void operator|(ListImmutable) {
-        List<T>::iAnchor = List<T>(*this);
+        if (_temporary)
+            List<T>::iAnchor = *this;
+        else
+            List<T>::iAnchor = List<T>(*this);
+        List<T>::iAnchor._temporary = true;
     }
     
     void operator<(ListMutable) {
@@ -169,3 +174,7 @@ template <class T> List<T> List<T>::mAnchor;
         } \
     } \
     List<T>::iAnchor
+
+#define show(T) \
+    ListImmutable(); \
+    tap(T, x, std::cout << x << std::endl)
