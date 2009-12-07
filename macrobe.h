@@ -22,6 +22,11 @@ public:
     
     List() {}
     
+    List(const List<T> & xs) {
+        size_ = xs.size_;
+        memcpy(data, xs.data, size_ * sizeof(T));
+    }
+    
     List(size_t s, T * xs) {
         data = new T[s];
         memcpy(data, xs, s * sizeof(T));

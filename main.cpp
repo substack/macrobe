@@ -8,5 +8,7 @@ int main() {
         | filter(int, x, x % 2 == 0)
         | each(int, x, std::cout << "x=" << x << std::endl);
     
+    for (int i = 0; i < xs.size(); i++)
+        std::cout << "xs[" << i << "] = " << xs[i] << std::endl;
     return 0;
 }
