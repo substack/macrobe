@@ -1,39 +1,85 @@
-#include "vfloat.h"
+#include <iostream>
+#include <cstring>
 
-#define let(expr) \
+#define let(...) \
     if (int _let_flip = 1) \
-    for (expr; _let_flip == 1; _let_flip = 0)
+    for (__VA_ARGS__; _let_flip == 1; _let_flip = 0)
 
-#define each_n(_each_obj, n, var) \
-    for (size_t _each_i = 0; _each_i < n; _each_i++) \
-    let(typeof(_each_obj[0]) & var = _each_obj[_each_i])
+#define va_length(T, ...) \
+    (sizeof va_array(T, __VA_ARGS__)) / (sizeof va_array(T, __VA_ARGS__)[0])
 
-#define map(_map_obj, var) \
-    let(size_t _map_size = _map_obj.size()) \
-    for (size_t _map_i = 0; _map_i < _map_size; _map_i++) \
-    let(typeof(_map_obj[0]) & var = _map_obj[_map_i])
+#define va_array(T, ...) ((T []){ __VA_ARGS__ })
 
-#define each(_each_obj, var) \
-    let(size_t _each_size = _each_obj.size()) \
-    for (size_t _each_i = 0; _each_i < _each_size; _each_i++) \
-    let(typeof(_each_obj[0]) & var = _each_obj[_each_i])
+#define makeList(T, ...) List<T>( \
+    va_length(T, __VA_ARGS__), \
+    va_array(T, __VA_ARGS__) \
+)
 
-#define each_with_index(_each_obj, var, iter) \
-    let(size_t _each_size = _each_obj.size()) \
-    for (size_t iter = 0; iter < _each_size; iter++) \
-    let(typeof(_each_obj[0]) & var = _each_obj[iter])
+class ListPipe {};
 
-#define each_with_vfloat(_each_obj, var, vf) \
-    let(size_t _each_size = _each_obj.size()) \
-    let (vfloat vf = vfloat(0,1,2,3)) \
-    for (size_t _each_i = 0; _each_i < _each_size; vf += 4, _each_i++) \
-    let (typeof(_each_obj[0]) & var = _each_obj[_each_i])
+template <class T>
+class List {
+    T *data;
+    size_t size_;
+public:
+    typedef T* iterator;
+    
+    List() {}
+    
+    List(size_t s, T *xs) {
+        memcpy(data, xs, s * sizeof(T));
+        size_ = s;
+    }
+    
+    size_t size() {
+        return size_;
+    }
+    
+    iterator begin() {
+        return data;
+    }
+    
+    iterator end() {
+        return data + size_;
+    }
+    
+    void operator|(ListPipe) {
+        List<T>::anchor = List<T>(*this);
+        //*
+        std::cout << "anchor={";
+        for (int i = 0; i < List<T>::anchor.size(); i++) {
+            std::cout << List<T>::anchor[i];
+            if (i < List<T>::anchor.size() - 1)
+                std::cout << ",";
+        }
+        std::cout << "}" << std::endl;
+        //*/
+    }
+    
+    void operator>(List & xs) {
+        xs = List<T>(*this);
+    }
+     
+    const T & operator[](size_t index) {
+        return data[index];
+    }
+    
+    static List<T> anchor;
+};
 
-#define each_n_with_index(_each_obj, n, var, iter) \
-    for (size_t iter = 0; iter < n; iter++) \
-    let(typeof(_each_obj[0]) & var = _each_obj[iter])
+template <class T>
+List<T> List<T>::anchor;
 
-#define each_n_with_vfloat(_each_obj, n, var, vf) \
-    let (vfloat vf = vfloat(0,1,2,3)) \
-    for (size_t _each_i = 0; _each_i < n; vf += 4, _each_i++) \
-    let (typeof(_each_obj[0]) & var = _each_obj[_each_i])
+#define map(T, var, ...) \
+    ListPipe(); \
+    List<T>::anchor
+/*
+    for ( \
+        List<T>::iterator _imap_i = List<T>::anchor.begin(), \
+            _imap_end = List<T>::anchor.end(); \
+        _imap_i != _imap_end; ++_imap_i \
+    ) { \
+        T & var = *_imap_i; \
+        var = __VA_ARGS__; \
+    } \
+*/
