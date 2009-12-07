@@ -24,6 +24,7 @@ public:
     
     List(const List<T> & xs) {
         size_ = xs.size_;
+        data = new T[size_];
         memcpy(data, xs.data, size_ * sizeof(T));
     }
     
@@ -56,7 +57,7 @@ public:
     }
     
     void operator>(List & xs) {
-        xs = List<T>(*this);
+        xs = *this;
     }
      
     const T & operator[](size_t index) {
@@ -91,6 +92,25 @@ List<T> List<T>::anchor;
         const T var = *_imap_i; \
         expr; \
     } \
+    List<T>::anchor
+
+#define each_with_index(T, var, index, expr) \
+    ListPipe(); \
+    for ( \
+        int index = 0, _each_size = List<T>::anchor.size(); \
+        index < _each_size; ++index \
+    ) { \
+        const T var = List<T>::anchor[index]; \
+        expr; \
+    } \
+    List<T>::anchor
+
+#define each_index(T, index, expr) \
+    ListPipe(); \
+    for ( \
+        int index = 0, _each_size = List<T>::anchor.size(); \
+        index < _each_size; ++index \
+    ) { expr; } \
     List<T>::anchor
 
 #define filter(T, var, expr) \
