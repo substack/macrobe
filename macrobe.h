@@ -26,10 +26,13 @@ public:
     
     List() {}
     
-    List(size_t s, T *xs) {
+    List(size_t s, T * xs) {
+        data = new T[s];
         memcpy(data, xs, s * sizeof(T));
         size_ = s;
     }
+    
+    ~List() {}
     
     size_t size() {
         return size_;
@@ -45,15 +48,6 @@ public:
     
     void operator|(ListPipe) {
         List<T>::anchor = List<T>(*this);
-        //*
-        std::cout << "anchor={";
-        for (int i = 0; i < List<T>::anchor.size(); i++) {
-            std::cout << List<T>::anchor[i];
-            if (i < List<T>::anchor.size() - 1)
-                std::cout << ",";
-        }
-        std::cout << "}" << std::endl;
-        //*/
     }
     
     void operator>(List & xs) {
@@ -70,16 +64,26 @@ public:
 template <class T>
 List<T> List<T>::anchor;
 
-#define map(T, var, ...) \
+#define map(T, var, expr) \
     ListPipe(); \
-    List<T>::anchor
-/*
     for ( \
         List<T>::iterator _imap_i = List<T>::anchor.begin(), \
             _imap_end = List<T>::anchor.end(); \
         _imap_i != _imap_end; ++_imap_i \
     ) { \
         T & var = *_imap_i; \
-        var = __VA_ARGS__; \
+        var = expr; \
     } \
-*/
+    List<T>::anchor
+
+#define each(T, var, expr) \
+    ListPipe(); \
+    for ( \
+        List<T>::iterator _imap_i = List<T>::anchor.begin(), \
+            _imap_end = List<T>::anchor.end(); \
+        _imap_i != _imap_end; ++_imap_i \
+    ) { \
+        T & var = *_imap_i; \
+        expr; \
+    } \
+    List<T>::anchor
