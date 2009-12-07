@@ -11,7 +11,8 @@
     va_array(T, __VA_ARGS__) \
 )
 
-class ListPipe {};
+class ListImmutable {};
+class ListMutable {};
 
 template <class T>
 class List {
@@ -34,6 +35,15 @@ public:
         size_ = s;
     }
     
+    // fill (SSE here mayhaps)
+    List(size_t s, T x) {
+        data = new T[s];
+        size_ = s;
+        for (int i = 0; i < s; i++) {
+            data[i] = x;
+        }
+    }
+    
     ~List() {}
     
     size_t size() {
@@ -44,6 +54,14 @@ public:
         size_ = s;
     }
     
+    void fill(size_t s, T x) {
+        if (s < size_) data = new T[s];
+        if (s != size_) resize(s);
+        for (int i = 0; i < s; i++) {
+            data[i] = x; // SSE here mayhaps
+        }
+    }
+    
     iterator begin() {
         return data;
     }
@@ -52,8 +70,12 @@ public:
         return data + size_;
     }
     
-    void operator|(ListPipe) {
-        List<T>::anchor = List<T>(*this);
+    void operator|(ListImmutable) {
+        List<T>::iAnchor = List<T>(*this);
+    }
+    
+    void operator<(ListMutable) {
+        List<T>::mAnchor = *this;
     }
     
     void operator>(List & xs) {
@@ -64,73 +86,86 @@ public:
         return data[index];
     }
     
-    static List<T> anchor;
+    static List<T> iAnchor;
+    static List<T> mAnchor;
 };
 
-template <class T>
-List<T> List<T>::anchor;
+template <class T> List<T> List<T>::iAnchor;
+template <class T> List<T> List<T>::mAnchor;
 
 #define map(T, var, expr) \
-    ListPipe(); \
+    ListImmutable(); \
     for ( \
-        List<T>::iterator _imap_i = List<T>::anchor.begin(), \
-            _imap_end = List<T>::anchor.end(); \
-        _imap_i != _imap_end; ++_imap_i \
+        List<T>::iterator _macrobe_i = List<T>::iAnchor.begin(), \
+            _macrobe_end = List<T>::iAnchor.end(); \
+        _macrobe_i != _macrobe_end; ++_macrobe_i \
     ) { \
-        T & var = *_imap_i; \
-        var = expr; \
+        const T var = *_macrobe_i; \
+        *_macrobe_i = expr; \
     } \
-    List<T>::anchor
+    List<T>::iAnchor
 
-#define each(T, var, expr) \
-    ListPipe(); \
+#define mapM(T, var, expr) \
+    ListMutable(); \
     for ( \
-        List<T>::iterator _imap_i = List<T>::anchor.begin(), \
-            _imap_end = List<T>::anchor.end(); \
-        _imap_i != _imap_end; ++_imap_i \
+        List<T>::iterator _macrobe_i = List<T>::mAnchor.begin(), \
+            _macrobe_end = List<T>::mAnchor.end(); \
+        _macrobe_i != _macrobe_end; ++_macrobe_i \
     ) { \
-        const T var = *_imap_i; \
+        T & var = *_macrobe_i; \
         expr; \
     } \
-    List<T>::anchor
+    List<T>::mAnchor
 
-#define each_with_index(T, var, index, expr) \
-    ListPipe(); \
+#define tap(T, var, expr) \
+    ListImmutable(); \
     for ( \
-        int index = 0, _each_size = List<T>::anchor.size(); \
-        index < _each_size; ++index \
+        List<T>::iterator _macrobe_i = List<T>::iAnchor.begin(), \
+            _macrobe_end = List<T>::iAnchor.end(); \
+        _macrobe_i != _macrobe_end; ++_macrobe_i \
     ) { \
-        const T var = List<T>::anchor[index]; \
+        const T var = *_macrobe_i; \
         expr; \
     } \
-    List<T>::anchor
+    List<T>::iAnchor
 
-#define each_index(T, index, expr) \
-    ListPipe(); \
+#define tap_with_index(T, var, index, expr) \
+    ListImmutable(); \
     for ( \
-        int index = 0, _each_size = List<T>::anchor.size(); \
-        index < _each_size; ++index \
+        int index = 0, _macrobe_size = List<T>::iAnchor.size(); \
+        index < _macrobe_size; ++index \
+    ) { \
+        const T var = List<T>::iAnchor[index]; \
+        expr; \
+    } \
+    List<T>::iAnchor
+
+#define tap_index(T, index, expr) \
+    ListImmutable(); \
+    for ( \
+        int index = 0, _macrobe_size = List<T>::iAnchor.size(); \
+        index < _macrobe_size; ++index \
     ) { expr; } \
-    List<T>::anchor
+    List<T>::iAnchor
 
 #define filter(T, var, expr) \
-    ListPipe(); \
+    ListImmutable(); \
     for ( \
         List<T>::iterator \
-            _imap_m = List<T>::anchor.begin(), \
-            _imap_i = List<T>::anchor.begin(), \
-            _imap_end = List<T>::anchor.end(); \
-        _imap_i != _imap_end; ++_imap_i \
+            _macrobe_m = List<T>::iAnchor.begin(), \
+            _macrobe_i = List<T>::iAnchor.begin(), \
+            _macrobe_end = List<T>::iAnchor.end(); \
+        _macrobe_i != _macrobe_end; ++_macrobe_i \
     ) { \
-        const T var = *_imap_i; \
+        const T var = *_macrobe_i; \
         if (expr) { \
-            *_imap_m = var; \
-            ++_imap_m; \
+            *_macrobe_m = var; \
+            ++_macrobe_m; \
         } \
-        if (_imap_i == _imap_end - 1) { \
-            List<T>::anchor.resize( \
-                List<T>::anchor.size() + _imap_m - _imap_i - 1 \
+        if (_macrobe_i == _macrobe_end - 1) { \
+            List<T>::iAnchor.resize( \
+                List<T>::iAnchor.size() + _macrobe_m - _macrobe_i - 1 \
             ); \
         } \
     } \
-    List<T>::anchor
+    List<T>::iAnchor
