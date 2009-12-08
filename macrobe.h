@@ -22,18 +22,20 @@ public:
     bool _temporary;
     typedef T* iterator;
     
-    List() {}
+    List() { _temporary = false; }
     
     List(const List<T> & xs) {
         size_ = xs.size_;
         data = new T[size_];
         memcpy(data, xs.data, size_ * sizeof(T));
+        _temporary = false;
     }
     
     List(size_t s, T * xs) {
         data = new T[s];
         memcpy(data, xs, s * sizeof(T));
         size_ = s;
+        _temporary = false;
     }
     
     // fill (SSE here mayhaps)
@@ -43,6 +45,7 @@ public:
         for (int i = 0; i < s; i++) {
             data[i] = x;
         }
+        _temporary = false;
     }
     
     ~List() {}
@@ -85,6 +88,7 @@ public:
     
     void operator>(List & xs) {
         xs = *this;
+        _temporary = false;
     }
      
     const T & operator[](size_t index) {

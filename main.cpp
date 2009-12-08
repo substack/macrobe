@@ -23,7 +23,7 @@ int main() {
     );
     
     std::cout << std::endl;
-
+    
     ys | tap_with_index(int, y, i,
         std::cout << "ys[" << i << "] = " << y << std::endl
     );
