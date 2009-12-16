@@ -1,11 +1,19 @@
-#include "macrobe.h"
+#include <macrobe.h>
+#include <macrobe/list.h>
 #include <iostream>
 
 int main() {
-    /*
-    List<int> xs = makeList(int,10,11,12,13,14), ys;
+    List<int> xs = makeList(int,10,11,12,13,14);
+    xs | pipeTT(1, int, int, p,
+        while (int s = p.read()) {
+            std::cout << "s=" << s << std::endl;
+            p += s;
+        }
+    );
+    
     //List<int> xs(50000000, 0.0), ys;
     
+    /*
     // in-place mutable update:
     xs <= map(int, x, x + 1);
     
