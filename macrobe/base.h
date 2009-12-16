@@ -87,17 +87,24 @@ public:
     }
     
     template <typename Tnext>
-    Pipe<Tout, Tnext> & operator|(Pipe<Tout,Tnext> & pipe) {
+    Pipe<Tout,Tnext> & operator|(Pipe<Tout,Tnext> & pipe) {
+    }
+    
+    void spawn() {
+        last = *this;
         pid = fork();
         if (pid == 0) fn(); // fn should exit(0) when finished
-        return pipe;
     }
+    static Pipe<Tin,Tout> & last; // necessary for macro hack
 };
 
 template <typename T>
 class Readable {
     template <typename Tout>
-    Pipe<T,Tout> & operator|(Pipe<T,Tout>);
+    Pipe<T,Tout> & operator|(Pipe<T,Tout> & pipe) {
+        pipe.spawn();
+        return pipe;
+    }
 };
 
 template <typename T> class Writable;
@@ -108,27 +115,27 @@ template <typename T> class Appendable;
 template <typename Tin, typename Tout>
 Appendable<Tout> & operator>>(Pipe<Tin,Tout>, Appendable<Tout>);
 
-#define pipeT(unique, T, var, expr) \
-    PipeTransform<T, typeof(expr)>(&&__map_label_#unique); \
+#define pipeT(T, var, expr) __pipeT(__COUNTER__, T, var, expr)
+#define __pipeT(unique, T, var, expr) \
+    Pipe<T, typeof(expr)>(&&__map_label_#unique); \
     { \
-        const PipeTransform<T, typeof(expr)> pt; \
+        Pipe<T, typeof(expr)> & var = Pipe<T, typeof(expr)>::last; \
         if (0) { \
-            const T & var = *pt.in; \
-            __map_label_#unique: *pt.out = expr; \
+            __map_label_#unique: \
+            expr; \
             exit(0); \
         } \
     } \
-    PipeTransform<T, typeof(expr)>::last
+    Pipe<T, typeof(expr)>::last
 
 #define pipeTT(unique, Tin, varIn, Tout, varOut, expr) \
-    & PipeTransform<Tin, Tout>(&&__map_label_#unique); \
+    & Pipe<Tin, Tout>(&&__map_label_#unique); \
     { \
-        const PipeTransform<Tin, Tout> pt; \
+        Pipe<T, typeof(expr)> & var = Pipe<T, typeof(expr)>::last; \
         if (0) { \
-            const Tin & varIn = *pt.in; \
-            Tout & varOut = *pt.out; \
-            __map_label_#unique: expr; \
-            goto * pt.jump; \
+            __map_label_#unique: \
+            expr; \
+            exit(0); \
         } \
     } \
-    PipeTransform<Tin, Tout>::last
+    Pipe<Tin, Tout>::last
