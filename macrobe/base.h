@@ -1,6 +1,8 @@
 #ifndef MACROBE_BASE_H
 #define MACROBE_BASE_H
 
+#include <iostream>
+
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
@@ -14,15 +16,17 @@ class Pipe {
 protected:
     size_t * r_offset, * w_offset;
     size_t size;
-    pid_t pid;
     
 public:
     Tout *buffer;
+    pid_t pid;
+    
     static const size_t capacity = 65536; // same as the Linux kernel
     
     Pipe(void *fn_) {
         fn = fn_;
         size = capacity / sizeof(Tout);
+        pid = -1;
         
         void *ptr = mmap(
             NULL, // kernel chooses the address
@@ -102,7 +106,8 @@ public:
     void spawn() {
         last = this;
         pid = fork();
-        if (pid == 0) goto *fn; // fn should exit(0) when finished
+        // fn should exit(0) when finished
+        if (pid == 0) goto *fn;
     }
     static Pipe<Tin,Tout> * last; // necessary for macro hack
 };
@@ -142,9 +147,10 @@ Appendable<Tout> & operator>>(Pipe<Tin,Tout>, Appendable<Tout>);
 #define pipeTT(unique, Tin, Tout, var, expr) \
     Pipe<Tin,Tout>(&&__map_label_ ## unique); \
     { \
+        __map_label_ ## unique: \
         Pipe<Tin,Tout> & var = * Pipe<Tin,Tout>::last; \
-        if (0) { \
-            __map_label_ ## unique: \
+        std::cout << "pid=" << p.pid << std::endl; \
+        if (p.pid == 0) { \
             expr; \
             exit(0); \
         } \

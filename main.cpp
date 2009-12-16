@@ -5,6 +5,7 @@
 int main() {
     List<int> xs = makeList(int,10,11,12,13,14);
     xs | pipeTT(1, int, int, p,
+        std::cout << "\\o/" << std::endl;
         while (int s = p.read()) {
             std::cout << "s=" << s << std::endl;
             p += s;
