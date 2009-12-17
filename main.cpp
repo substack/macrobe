@@ -4,7 +4,7 @@
 
 int main() {
     List<int> xs = makeList(int,10,11,12,13,14);
-    xs | pipeTT(1, int, int, p,
+    xs | pipeTT(map, int, int, p,
         while (int s = p.ready()) {
             std::cout << "s=" << s << std::endl;
             for (int i = 0; i < s; i++) {

@@ -84,7 +84,8 @@ public:
         useconds_t t = 1; // short naps increase to the upper bound
         unsigned int i = 0;
         while (r_offset == w_offset) {
-std::cout << "==" << std::endl;
+std::cout << "r_offset = " << r_offset << std::endl;
+std::cout << "w_offset = " << w_offset << std::endl;
             usleep(t); // sleep until more data is written
             if (t < 1024) t *= 2; // ramp up wait time for bits
             
