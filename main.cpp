@@ -5,11 +5,15 @@
 int main() {
     List<int> xs = makeList(int,10,11,12,13,14);
     xs | pipeTT(1, int, int, p,
-        std::cout << "\\o/" << std::endl;
-        while (int s = p.read()) {
+        while (int s = p.ready()) {
             std::cout << "s=" << s << std::endl;
+            for (int i = 0; i < s; i++) {
+                std::cout << "reading..." << std::endl;
+                std::cout << "read: " << p.next() << std::endl;
+            }
             p += s;
         }
+        std::cout << "done" << std::endl;
     );
     
     //List<int> xs(50000000, 0.0), ys;

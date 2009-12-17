@@ -26,8 +26,11 @@ public:
         pipe.spawn();
         
         for (int i = 0; i < filled; i++) {
+            std::cout << "data[" << i << "] = " << data[i] << std::endl;
             pipe.write(data[i]);
         }
+        
+        pipe.close();
     }
     
     T & operator[](int i) {
