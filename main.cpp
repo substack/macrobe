@@ -5,17 +5,17 @@
 int main() {
     List<int> xs = makeList(int,10,11,12,13,14), ys;
     xs | pipeTT(map, int, int, pipe,
-std::cout << "start" << std::endl;
         while (int s = pipe.ready()) {
-            std::cout << "s=" << s << std::endl;
             for (int i = 0; i < s; i++) {
-                std::cout << "reading..." << std::endl;
-                std::cout << "read: " << pipe.next() << std::endl;
+                int x = pipe.read();
+                pipe.write(x);
             }
-            pipe += s;
         }
         std::cout << "done" << std::endl;
     ) > ys;
+    
+    for (int i = 0; i < ys.size(); i++)
+        std::cout << "y=" << ys[i] << std::endl;
     
     //List<int> xs(50000000, 0.0), ys;
     

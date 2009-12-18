@@ -10,65 +10,44 @@
 #include <sys/wait.h> // waitpid
 #include <csignal>
 
-template <typename Tin, typename Tout>
-class Pipe {
-    void *fn; // code that gets executed after pipes are set up
-    
-protected:
-    size_t r_offset, w_offset;
-    
+template <typename T>
+class RingBuffer {
     // same size as Linux kernel's pipe buffer
     static const size_t capacity = 65536;
-    static const size_t size = capacity / sizeof(Tout);
-    Tout buffer[size];
+    static const size_t size = capacity / sizeof(T);
+    T buffer[size];
     
-public:
-    pid_t pid; // public for macro access
+    size_t r_offset, w_offset;
+    bool closed;
     
-    Pipe(void *fp) {
-        fn = fp;
-        pid = -1;
-        r_offset = w_offset = 0;
+    // private constructor since these should be built in shared memory only
+    RingBuffer() {
+        r_offset = 0;
+        w_offset = 0;
     }
     
-    // create a new copy of the object in shared memory
-    static Pipe<Tin,Tout> & shared(void *fp) {
-        void *ptr = mmap(
+public:
+    // build a ring buffer in shared memory
+    static RingBuffer<T> * shared() {
+        RingBuffer<T> *rb = (RingBuffer<T> *) mmap(
             NULL, // kernel chooses the address
-            sizeof(Pipe<Tin,Tout>),
+            sizeof(RingBuffer<T>),
             PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED,
             -1, 0 // fd, offset not used since there is no file
         );
-        if (ptr == (void *) -1) {
+        if (rb == (RingBuffer<T> *) -1) {
             std::cerr << "Couldn't allocate shared memory" << std::endl;
             exit(1);
         }
-        Pipe<Tin,Tout> * p = (Pipe<Tin,Tout> *) ptr;
-        *p = Pipe<Tin,Tout>(fp);
-        return *p;
+        *rb = RingBuffer<T>();
+        return rb;
     }
     
-    void close() {
-        //waitpid(pid, 0, 0);
-        wait(0);
-    }
+    void close() { closed = true; }
     
     // seek r_offset ahead
     void operator++() { r_offset++; }
     void operator+=(size_t n) { r_offset += n; }
-    
-    Tout next() {
-        Tout x = buffer[r_offset];
-        r_offset ++;
-        return x;
-    }
-    
-    Tout * next(size_t n) {
-        Tout *xs = new Tout[n];
-        memcpy(xs, buffer + r_offset, n);
-        r_offset += n;
-        return xs;
-    }
     
     // block until there is data to be read from the buffer
     // returns how many elements can be read
@@ -76,24 +55,34 @@ public:
         useconds_t t = 1; // short naps increase to the upper bound
         unsigned int i = 0;
         while (r_offset == w_offset) {
-std::cout << "r_offset = " << r_offset << std::endl;
-std::cout << "w_offset = " << w_offset << std::endl;
+            if (closed && r_offset == w_offset) return 0;
             usleep(t); // sleep until more data is written
             if (t < 1024) t *= 2; // ramp up wait time for bits
-            
-            // occasionally make sure that the worker process is still alive
-            if (t > 1 && i++ % 10 == 0 && waitpid(pid, 0, WNOHANG) > 0) {
-                // process terminated, unmap memory and return 0
-                size_t h = 2 * sizeof(size_t);
-                munmap((void *) (buffer - h), capacity + h);
-                return 0;
-            }
         }
         return (size + w_offset - r_offset) % size;
     }
     
+    T read() {
+        T x = buffer[r_offset];
+        ++(*this);
+        return x;
+    }
+    
+    T * read(size_t n) {
+        T *xs = new T[n];
+        memcpy(xs, buffer, n);
+        *this += n;
+        return xs;
+    }
+    
+    const T * read_buffer() {
+        return buffer + r_offset;
+    }
+    
     // write a single element to the buffer
-    void write(const Tout & x) {
+    void write(const T & x) {
+        if (closed) return;
+        
         useconds_t t = 1; // short naps increase to the upper bound
         while ((w_offset + 1) % size == r_offset) {
             usleep(t); // sleep until more data is read
@@ -104,7 +93,9 @@ std::cout << "w_offset = " << w_offset << std::endl;
     }
     
     // write many elements to the buffer
-    void write(size_t n, const Tout * xs) {
+    void write(size_t n, const T * xs) {
+        if (closed) return;
+        
         if (n + w_offset > size) {
             // spans boundary, recursivly write
             write(size - w_offset, xs);
@@ -129,21 +120,48 @@ std::cout << "w_offset = " << w_offset << std::endl;
         }
     }
     
-    template <typename Tnext>
-    Pipe<Tout,Tnext> & operator|(Pipe<Tout,Tnext> & pipe) {
+};
+
+template <typename Tin, typename Tout>
+class Pipe {
+    void *fp; // code that gets executed after pipes are set up
+    
+public:
+    pid_t pid; // public for macro access
+    RingBuffer<Tout> * out_buffer;
+    RingBuffer<Tin> * in_buffer;
+    
+    Pipe(void *fp_) {
+        fp = fp_;
+        pid = 0;
+        out_buffer = RingBuffer<Tout>::shared();
     }
     
-    Pipe<Tin,Tout> * spawn() {
+    // handy aliases to make macros simpler
+    size_t ready() { return in_buffer->ready(); }
+    Tin * read(size_t n) { return in_buffer->read(n); }
+    const Tin * read_buffer() { return in_buffer->read_buffer(); }
+    Tin read() { return in_buffer->read(); }
+    void write(const Tout & x) { out_buffer->write(x); }
+    void write(size_t n, const Tout * xs) { out_buffer->write(n, xs); }
+    
+    void close() { in_buffer->close(); out_buffer->close(); }
+    
+    template <typename Tnext>
+    Pipe<Tout,Tnext> & operator|(Pipe<Tout,Tnext> & pipe) {
+        pipe.open(out_buffer);
+    }
+    
+    Pipe<Tin,Tout> * open(RingBuffer<Tin> * in) {
+        in_buffer = in;
         last = this;
+        
         pid = fork();
-        // fn should exit(0) when finished
         if (pid == 0) {
             signal(SIGSEGV, _trap_sig);
-            goto *fn;
+            goto *fp; // fp must exit(0) when finished
         }
-        else {
-            signal(SIGPIPE, _trap_sig);
-        }
+        signal(SIGPIPE, _trap_sig);
         return last;
     }
     
@@ -161,22 +179,8 @@ private:
 template <typename Tin, typename Tout>
 Pipe<Tin,Tout> * Pipe<Tin,Tout>::last; // necessary for macro hack
 
-template <typename T>
-class Readable {
-    template <typename Tout>
-    void operator|(Pipe<T,Tout> & pipe);
-};
-
-template <typename T> class Writable;
-template <typename Tin, typename Tout>
-Writable<Tout> & operator>(Pipe<Tin,Tout>, Writable<Tout>);
-
-template <typename T> class Appendable;
-template <typename Tin, typename Tout>
-Appendable<Tout> & operator>>(Pipe<Tin,Tout>, Appendable<Tout>);
-
 #define pipeT(unique, T, var, expr) \
-    Pipe<T,typeof(expr)>(&& __map_label_#unique)::shared; \
+    Pipe<T,typeof(expr)>::shared(&& __map_label_#unique); \
     { \
         Pipe<T,typeof(expr)> & var = * Pipe<T,typeof(expr)>::last; \
         __map_label_#unique: \
@@ -188,7 +192,7 @@ Appendable<Tout> & operator>>(Pipe<Tin,Tout>, Appendable<Tout>);
     * Pipe<T,typeof(expr)>::last
 
 #define pipeTT(unique, Tin, Tout, var, expr) \
-    Pipe<Tin,Tout>::shared(&&__map_label_ ## unique); \
+    *new Pipe<Tin,Tout>(&&__map_label_ ## unique); \
     { \
         __map_label_ ## unique: \
         Pipe<Tin,Tout> & var = * Pipe<Tin,Tout>::last; \

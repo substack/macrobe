@@ -36,10 +36,11 @@ public:
     
     template <typename Tout>
     void operator|(Pipe<T,Tout> & pipe) {
-        pipe.spawn();
+        RingBuffer<T> *buffer = RingBuffer<T>::shared();
+        pipe.open(buffer);
         for (int i = 0; i < filled; i++) {
             std::cout << "data[" << i << "] = " << data[i] << std::endl;
-            pipe.write(data[i]);
+            buffer->write(data[i]);
         }
         pipe.close();
     }
@@ -50,6 +51,8 @@ public:
         xs.push(ys);
         return xs;
     }
+    
+    size_t size() { return filled; }
     
     void empty() {
         filled = 0;
@@ -93,20 +96,20 @@ public:
 
 template <typename Tin, typename Tout>
 void operator>>(Pipe<Tin,Tout> & pipe, List<Tout> & xs) {
-    pipe.spawn();
+    pipe.open();
     while (int s = pipe.ready()) {
-std::cout << "push" << std::endl;
-        xs.push(s, pipe.next(s));
+        xs.push(s, pipe.read(s));
     }
     pipe.close();
 }
 
 template <typename Tin, typename Tout>
 void operator>(Pipe<Tin,Tout> & pipe, List<Tout> & xs) {
-    pipe.spawn();
     xs.empty();
+std::cout << "operator>" << std::endl;
     while (int s = pipe.ready()) {
-        xs.push(s, pipe.next(s));
+std::cout << "> s = " << s << std::endl;
+        xs.push(s, pipe.read(s));
     }
     pipe.close();
 }
