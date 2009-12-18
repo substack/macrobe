@@ -42,7 +42,7 @@ public:
             std::cout << "data[" << i << "] = " << data[i] << std::endl;
             buffer->write(data[i]);
         }
-        pipe.close();
+        //pipe.close();
     }
     
     // concatenate two lists with +
@@ -109,7 +109,12 @@ void operator>(Pipe<Tin,Tout> & pipe, List<Tout> & xs) {
 std::cout << "operator>" << std::endl;
     while (int s = pipe.ready()) {
 std::cout << "> s = " << s << std::endl;
-        xs.push(s, pipe.read(s));
+        for (int i = 0; i < s; i++) {
+            Tin x = pipe.read();
+std::cout << "> x = " << x << std::endl;
+            xs.push(x);
+        }
+        //xs.push(s, pipe.read_buffer());
     }
     pipe.close();
 }

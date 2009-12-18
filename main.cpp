@@ -1,11 +1,15 @@
 #include <macrobe.h>
-#include <macrobe/list.h>
+//#include <macrobe/list.h>
+#include <macrobe/vector.h>
 #include <iostream>
+using std::vector;
 
 int main() {
-    List<int> xs = makeList(int,10,11,12,13,14), ys;
+    vector<int> xs = makeVector(int,10,11,12,13,14), ys;
     xs | pipeTT(map, int, int, pipe,
+std::cout << "pipe" << std::endl;
         while (int s = pipe.ready()) {
+std::cout << "| s = " << s << std::endl;
             for (int i = 0; i < s; i++) {
                 int x = pipe.read();
                 pipe.write(x);

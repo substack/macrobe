@@ -24,6 +24,7 @@ class RingBuffer {
     RingBuffer() {
         r_offset = 0;
         w_offset = 0;
+        closed = false;
     }
     
 public:
@@ -54,6 +55,7 @@ public:
     size_t ready() {
         useconds_t t = 1; // short naps increase to the upper bound
         unsigned int i = 0;
+std::cout << "r=" << r_offset << ", w=" << w_offset << ", c=" << closed << std::endl;
         while (r_offset == w_offset) {
             if (closed && r_offset == w_offset) return 0;
             usleep(t); // sleep until more data is written
@@ -144,7 +146,8 @@ public:
     Tin read() { return in_buffer->read(); }
     void write(const Tout & x) { out_buffer->write(x); }
     void write(size_t n, const Tout * xs) { out_buffer->write(n, xs); }
-    
+    void operator++() { ++(*in_buffer); }
+    void operator+=(size_t n) { (*in_buffer) += n; }
     void close() { in_buffer->close(); out_buffer->close(); }
     
     template <typename Tnext>
