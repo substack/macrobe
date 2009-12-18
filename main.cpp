@@ -3,18 +3,19 @@
 #include <iostream>
 
 int main() {
-    List<int> xs = makeList(int,10,11,12,13,14);
-    xs | pipeTT(map, int, int, p,
-        while (int s = p.ready()) {
+    List<int> xs = makeList(int,10,11,12,13,14), ys;
+    xs | pipeTT(map, int, int, pipe,
+std::cout << "start" << std::endl;
+        while (int s = pipe.ready()) {
             std::cout << "s=" << s << std::endl;
             for (int i = 0; i < s; i++) {
                 std::cout << "reading..." << std::endl;
-                std::cout << "read: " << p.next() << std::endl;
+                std::cout << "read: " << pipe.next() << std::endl;
             }
-            p += s;
+            pipe += s;
         }
         std::cout << "done" << std::endl;
-    );
+    ) > ys;
     
     //List<int> xs(50000000, 0.0), ys;
     

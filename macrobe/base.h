@@ -10,15 +10,6 @@
 #include <sys/wait.h> // waitpid
 #include <csignal>
 
-void _signal_child(int sig) {
-    fprintf(stderr, "Child process caught signal %d", sig);
-    if (sig == 11) {
-        fprintf(stderr, " (SEGV)");
-    }
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
 template <typename Tin, typename Tout>
 class Pipe {
     void *fn; // code that gets executed after pipes are set up
@@ -40,8 +31,8 @@ public:
         r_offset = w_offset = 0;
     }
     
-    // 
-    Pipe<Tin,Tout> & share() {
+    // create a new copy of the object in shared memory
+    static Pipe<Tin,Tout> & shared(void *fp) {
         void *ptr = mmap(
             NULL, // kernel chooses the address
             sizeof(Pipe<Tin,Tout>),
@@ -53,12 +44,13 @@ public:
             exit(1);
         }
         Pipe<Tin,Tout> * p = (Pipe<Tin,Tout> *) ptr;
-        *p = *this;
+        *p = Pipe<Tin,Tout>(fp);
         return *p;
     }
     
     void close() {
-        waitpid(pid, 0, 0);
+        //waitpid(pid, 0, 0);
+        wait(0);
     }
     
     // seek r_offset ahead
@@ -141,16 +133,29 @@ std::cout << "w_offset = " << w_offset << std::endl;
     Pipe<Tout,Tnext> & operator|(Pipe<Tout,Tnext> & pipe) {
     }
     
-    void spawn() {
+    Pipe<Tin,Tout> * spawn() {
+        last = this;
         pid = fork();
         // fn should exit(0) when finished
         if (pid == 0) {
-            last = this;
-            signal(SIGSEGV, &_signal_child);
+            signal(SIGSEGV, _trap_sig);
             goto *fn;
         }
+        else {
+            signal(SIGPIPE, _trap_sig);
+        }
+        return last;
     }
+    
     static Pipe<Tin,Tout> * last; // necessary for macro hack
+    
+private:
+    static void _trap_sig(int sig) {
+        if (sig == SIGPIPE) {
+            wait(0);
+        }
+        exit(1);
+    }
 };
 
 template <typename Tin, typename Tout>
@@ -171,23 +176,23 @@ template <typename Tin, typename Tout>
 Appendable<Tout> & operator>>(Pipe<Tin,Tout>, Appendable<Tout>);
 
 #define pipeT(unique, T, var, expr) \
-    Pipe<T, typeof(expr)>(&& __map_label_#unique); \
+    Pipe<T,typeof(expr)>(&& __map_label_#unique)::shared; \
     { \
-        Pipe<T, typeof(expr)> & var = Pipe<T, typeof(expr)>::last->share(); \
-        if (0) { \
-            __map_label_#unique: \
+        Pipe<T,typeof(expr)> & var = * Pipe<T,typeof(expr)>::last; \
+        __map_label_#unique: \
+        if (var.pid == 0) { \
             expr; \
             exit(0); \
         } \
     } \
-    * Pipe<T, typeof(expr)>::last
+    * Pipe<T,typeof(expr)>::last
 
 #define pipeTT(unique, Tin, Tout, var, expr) \
-    Pipe<Tin,Tout>(&&__map_label_ ## unique); \
+    Pipe<Tin,Tout>::shared(&&__map_label_ ## unique); \
     { \
         __map_label_ ## unique: \
-        Pipe<Tin,Tout> & var = Pipe<Tin,Tout>::last->share(); \
-        if (p.pid == 0) { \
+        Pipe<Tin,Tout> & var = * Pipe<Tin,Tout>::last; \
+        if (var.pid == 0) { \
             expr; \
             exit(0); \
         } \

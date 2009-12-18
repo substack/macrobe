@@ -35,7 +35,7 @@ public:
     }
     
     template <typename Tout>
-    void operator|(Pipe<T,Tout> pipe) {
+    void operator|(Pipe<T,Tout> & pipe) {
         pipe.spawn();
         for (int i = 0; i < filled; i++) {
             std::cout << "data[" << i << "] = " << data[i] << std::endl;
@@ -49,6 +49,10 @@ public:
         List<T> xs(*this);
         xs.push(ys);
         return xs;
+    }
+    
+    void empty() {
+        filled = 0;
     }
     
     void push(const T & x) {
@@ -90,6 +94,17 @@ public:
 template <typename Tin, typename Tout>
 void operator>>(Pipe<Tin,Tout> & pipe, List<Tout> & xs) {
     pipe.spawn();
+    while (int s = pipe.ready()) {
+std::cout << "push" << std::endl;
+        xs.push(s, pipe.next(s));
+    }
+    pipe.close();
+}
+
+template <typename Tin, typename Tout>
+void operator>(Pipe<Tin,Tout> & pipe, List<Tout> & xs) {
+    pipe.spawn();
+    xs.empty();
     while (int s = pipe.ready()) {
         xs.push(s, pipe.next(s));
     }
