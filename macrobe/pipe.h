@@ -38,57 +38,51 @@ public:
 };
 
 template <typename Tin, typename Tout>
-Pipe<Tin,Tout> * Pipe<Tin,Tout>::current;
+Pipe<Tin,Tout> * Pipe<Tin,Tout>::current = new Pipe<Tin,Tout>();
 
 template <typename Tin, typename Tout>
-Pipe<Tin,Tout> * Pipe<Tin,Tout>::last;
-
-/*
-#include <vector>
-template <typename Tin, typename Tout>
-operator|(std::vector<Tin> & xs, Pipe<Tin,Tout> & pipe) {
-    std::vector<Tin>::iterator i, end;
-    for (i = xs.begin(), end = xs.end(); i != end; i++)
-        pipe.write(*i);
-    pipe.close();
-}
-*/
+Pipe<Tin,Tout> * Pipe<Tin,Tout>::last = new Pipe<Tin,Tout>();
 
 template <typename Tin, typename Tout>
 void operator|(RingBuffer<Tin> & rb, Pipe<Tin,Tout> * pipe) {
     pipe->tie(&rb);
-    while (int s = rb.ready()) {
-        for (int i = 0; i < s; i++) {
-            const Tin x = rb.read();
+    if (!fork()) {
+        while (int s = rb.ready()) {
+std::cout << "= s = " << s << std::endl;
+            for (int i = 0; i < s; i++) {
+                const Tin x = rb.read();
 std::cout << "buf x: " << x << std::endl;
-            pipe->tied->write(x);
+                pipe->tied->write(x);
+            }
+            rb += s;
         }
-        rb += s;
+        pipe->tied->close();
+        exit(0);
     }
-    pipe->tied->close();
 }
 
 #define yield(expr) _pipe.buffer->write(expr)
 
 #define eachT(T,var,expr) \
-    *Pipe<T,T>::current; \
+    Pipe<T,T>::current; \
     if (!fork()) { \
         Pipe<T,T> & _pipe = *Pipe<T,T>::current; \
-        while (!_pipe.tied); /* wait until pipe is tied */ \
         while (int s = _pipe.tied->ready()) { \
+std::cout << "s = " << s << std::endl; \
             for (int i = 0; i < s; i++) { \
                 const T var = _pipe.tied->read(); \
                 expr; \
             } \
         } \
+std::cout << "close!" << std::endl; \
         _pipe.buffer->close(); \
         exit(0); \
     }
 
 #define mapT(Tin,Tout,var,expr) \
-    *Pipe<T,T>::current; \
+    Pipe<T,T>::current; \
+    Pipe<T,T> & _pipe = *Pipe<T,T>::current; \
     if (!fork()) { \
-        Pipe<T,T> & _pipe = *Pipe<T,T>::current; \
         while (!_pipe.tied); /* wait until pipe is tied */ \
         while (int s = _pipe.tied->ready()) { \
             for (int i = 0; i < s; i++) { \
@@ -101,6 +95,6 @@ std::cout << "buf x: " << x << std::endl;
     } \
     *Pipe<T,typeof(expr)>::last = *Pipe<T,typeof(expr)>::current; \
     *Pipe<T,typeof(expr)>::current = new Pipe<T,typeof(expr)>; \
-    *Pipe<T,typeof(expr)>::last
+    Pipe<T,typeof(expr)>::last
 
 #endif

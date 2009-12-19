@@ -9,8 +9,8 @@ int main() {
     float xs[] = { 2, 4, 4, 8 };
     rb->write(4, xs);
     rb->close();
-    //rb | eachT(float, x, std::cout << x << std::endl);
-    *rb | new Pipe<float,float>;
+    *rb | eachT(float, x, std::cout << x << std::endl);
+    //*rb | new Pipe<float,float>;
     
     /*
     *rb | *Pipe<float,float>::current;
