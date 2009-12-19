@@ -10,119 +10,7 @@
 #include <sys/wait.h> // waitpid
 #include <csignal>
 
-template <typename T>
-class RingBuffer {
-    // same size as Linux kernel's pipe buffer
-    static const size_t capacity = 65536;
-    static const size_t size = capacity / sizeof(T);
-    T buffer[size];
-    
-    size_t r_offset, w_offset;
-    bool closed;
-    
-    // private constructor since these should be built in shared memory only
-    RingBuffer() {
-        r_offset = 0;
-        w_offset = 0;
-        closed = false;
-    }
-    
-public:
-    // build a ring buffer in shared memory
-    static RingBuffer<T> * shared() {
-        RingBuffer<T> *rb = (RingBuffer<T> *) mmap(
-            NULL, // kernel chooses the address
-            sizeof(RingBuffer<T>),
-            PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED,
-            -1, 0 // fd, offset not used since there is no file
-        );
-        if (rb == (RingBuffer<T> *) -1) {
-            std::cerr << "Couldn't allocate shared memory" << std::endl;
-            exit(1);
-        }
-        *rb = RingBuffer<T>();
-        return rb;
-    }
-    
-    void close() { closed = true; }
-    
-    // seek r_offset ahead
-    void operator++() { r_offset++; }
-    void operator+=(size_t n) { r_offset += n; }
-    
-    // block until there is data to be read from the buffer
-    // returns how many elements can be read
-    size_t ready() {
-        useconds_t t = 1; // short naps increase to the upper bound
-        unsigned int i = 0;
-std::cout << "r=" << r_offset << ", w=" << w_offset << ", c=" << closed << std::endl;
-        while (r_offset == w_offset) {
-            if (closed && r_offset == w_offset) return 0;
-            usleep(t); // sleep until more data is written
-            if (t < 1024) t *= 2; // ramp up wait time for bits
-        }
-        return (size + w_offset - r_offset) % size;
-    }
-    
-    T read() {
-        T x = buffer[r_offset];
-        ++(*this);
-        return x;
-    }
-    
-    T * read(size_t n) {
-        T *xs = new T[n];
-        memcpy(xs, buffer, n);
-        *this += n;
-        return xs;
-    }
-    
-    const T * read_buffer() {
-        return buffer + r_offset;
-    }
-    
-    // write a single element to the buffer
-    void write(const T & x) {
-        if (closed) return;
-        
-        useconds_t t = 1; // short naps increase to the upper bound
-        while ((w_offset + 1) % size == r_offset) {
-            usleep(t); // sleep until more data is read
-            if (t < 1024) t *= 2; // ramp up sleep time
-        }
-        buffer[w_offset] = x;
-        w_offset = (w_offset + 1) % size;
-    }
-    
-    // write many elements to the buffer
-    void write(size_t n, const T * xs) {
-        if (closed) return;
-        
-        if (n + w_offset > size) {
-            // spans boundary, recursivly write
-            write(size - w_offset, xs);
-            write(n - (size - w_offset), xs + size - w_offset);
-        }
-       else if (n + w_offset >= r_offset) {
-            // spans read offset
-            size_t r = r_offset;
-            write(r - w_offset, xs);
-            
-            useconds_t t = 1;
-            while (r_offset == r) {
-                usleep(t); // sleep until more data is read
-                if (t < 1024) t *= 2; // ramp up sleep time
-            }
-            // recursively write more data
-            write(n - (r - w_offset), xs);
-        }
-        else {
-            memcpy(buffer + w_offset, xs, n);
-            w_offset = (w_offset + n) % size;
-        }
-    }
-    
-};
+#include <macrobe/ring_buffer.h>
 
 template <typename Tin, typename Tout>
 class Pipe {
@@ -148,7 +36,9 @@ public:
     void write(size_t n, const Tout * xs) { out_buffer->write(n, xs); }
     void operator++() { ++(*in_buffer); }
     void operator+=(size_t n) { (*in_buffer) += n; }
-    void close() { in_buffer->close(); out_buffer->close(); }
+    void close() {
+        out_buffer->close();
+    }
     
     template <typename Tnext>
     Pipe<Tout,Tnext> & operator|(Pipe<Tout,Tnext> & pipe) {
