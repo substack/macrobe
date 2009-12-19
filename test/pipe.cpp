@@ -1,30 +1,32 @@
 #include <macrobe/ring_buffer.h>
 #include <macrobe/pipe.h>
+#include <vector>
+using std::vector;
 
 int main() {
     RingBuffer<float> *rb = RingBuffer<float>::shared();
     
-    float xs[] = { 1, 3, 3, 7 };
+    float xs[] = { 2, 4, 4, 8 };
     rb->write(4, xs);
     rb->close();
+    //rb | eachT(float, x, std::cout << x << std::endl);
+    *rb | new Pipe<float,float>;
     
-    Pipe<float> p1, p2;
-    p1.tie(rb);
-    p2.tie(p1);
-    
-    while (int s = p1.tied->ready()) {
-        for (int i = 0; i < s; i++) {
-            float x = p1.tied->read();
-std::cout << "p1: " << x << std::endl;
-            p1.buffer->write(x);
+    /*
+    *rb | *Pipe<float,float>::current;
+    if (!fork()) {
+        Pipe<float,float> & _pipe = *Pipe<float,float>::current;
+        while (!_pipe.tied);
+        while (int s = _pipe.tied->ready()) {
+            for (int i = 0; i < s; i++) {
+                const float x = _pipe.tied->read();
+                std::cout << x << std::endl;
+            }
         }
-    }
-    p1.buffer->close();
+        x.buffer->close();
+        exit(0);
+    };
+    */
     
-    while (int s = p2.tied->ready()) {
-        for (int i = 0; i < s; i++) {
-            float x = p2.tied->read();
-std::cout << "p2: " << x << std::endl;
-        }
-    }
+    return 0;
 }
