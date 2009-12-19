@@ -5,7 +5,30 @@
 #include <ogl/gpgpu.h>
 #include <ogl/glsl.cpp>
 
-using std::vector;
+class ShaderPipe {
+// based heavily on http://cs.uaf.edu/2009/fall/cs441/lecture/12_03_GPGPU.html
+    gpu_env e;
+    int width, height;
+    
+public:
+    gpu_array *src, *dst;
+    float *data;
+    int filled;
+    
+    ShaderPipe(int w, int h) {
+        data = new float[width * height];
+        filled = 0;
+    }
+    
+    bool full() { return filled >= width * height; }
+    ShaderPipe & operator<<(float x) { data[filled++] = x; }
+    
+    void flush() {
+        src = new gpu_array(e, "src", width, height, data, GL_LUMINANCE32F_ARB);
+        dst = new gpu_array(e, "dst", width, height, data, GL_LUMINANCE32F_ARB);
+        dst->read(data, width, height);
+    }
+};
 
 int main() {
     RingBuffer<float> *rb = RingBuffer<float>::shared();
@@ -22,7 +45,7 @@ int main() {
             for (int i = 0; i < s; i++) {
                 float x = p1.tied->read();
                 std::cout << "p1: " << x << std::endl;
-                p1.buffer->write(x);
+                p1.buffer->write(x + 1);
             }
         }
         p1.buffer->close();
@@ -31,10 +54,19 @@ int main() {
     
     p2.tie(p1);
     if (!fork()) {
+        ShaderPipe sp(1024,1024);
         while (int s = p2.tied->ready()) {
             for (int i = 0; i < s; i++) {
                 float x = p2.tied->read();
-                std::cout << "p2: " << x << std::endl;
+                sp << x;
+                if (sp.full()) {
+                    GPU_RUN(*sp.dst,
+                         float c = texture2D(src, location).r;
+                         gl_FragColor = c * 0.9 + 0.1;
+                    );
+                    sp.flush();
+                    p2.buffer->write(sp.filled, sp.data);
+                }
             }
         }
         p2.buffer->close();
@@ -47,6 +79,7 @@ int main() {
             for (int i = 0; i < s; i++) {
                 float x = p3.tied->read();
                 std::cout << "p3: " << x << std::endl;
+                p3.buffer->write(x * 10.0);
             }
         }
         p3.buffer->close();
