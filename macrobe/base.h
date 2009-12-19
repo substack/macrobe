@@ -52,7 +52,7 @@ public:
         pid = fork();
         if (pid == 0) {
             signal(SIGSEGV, _trap_sig);
-            goto *fp; // fp must exit(0) when finished
+            goto *fp; // fp must close() and exit(0) when finished
         }
         signal(SIGPIPE, _trap_sig);
         return last;

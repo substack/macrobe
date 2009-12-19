@@ -6,9 +6,8 @@
 
 // hideous trick to create lists without explicit lengths or sentinels:
 #define makeVector(T, ...) std::vector<T>( \
-    __va_array(T, __VA_ARGS__), \
+    __va_array(T, __VA_ARGS__), __va_array(T, __VA_ARGS__) + \
     sizeof(__va_array(T, __VA_ARGS__)) / sizeof(__va_array(T, __VA_ARGS__)[0]) \
-        + __va_array(T, __VA_ARGS__) \
 )
 #define __va_array(T, ...) ((T []){ __VA_ARGS__ })
 
@@ -17,12 +16,10 @@ void operator|(std::vector<Tin> & xs, Pipe<Tin,Tout> & pipe) {
     RingBuffer<Tin> *buffer = RingBuffer<Tin>::shared();
     pipe.open(buffer);
     typename std::vector<Tin>::const_iterator iter, end;
-    
     for (iter = xs.begin(), end = xs.end(); iter != end; iter++) {
-        std::cout << "data: " << *iter << std::endl;
         buffer->write(*iter);
     }
-    //pipe.close();
+    pipe.close();
 }
     
 template <typename Tin, typename Tout>
@@ -37,8 +34,10 @@ void operator>>(Pipe<Tin,Tout> & pipe, std::vector<Tout> & xs) {
 
 template <typename Tin, typename Tout>
 void operator>(Pipe<Tin,Tout> & pipe, std::vector<Tout> & xs) {
+    RingBuffer<Tout> *rb = RingBuffer<Tout>::shared();
+    pipe.open(rb);
+    
     xs.empty();
-std::cout << ">" << std::endl;
     while (int s = pipe.ready()) {
 std::cout << "> s = " << s << std::endl;
         xs.insert(
@@ -49,7 +48,7 @@ std::cout << "> s = " << s << std::endl;
         pipe += s;
     }
 std::cout << "> close" << std::endl;
-    //pipe.close();
+    pipe.close();
 }
 
 #endif
