@@ -1,7 +1,10 @@
-all: main
+all: manual_pipes
 
 clean:
-	rm -f main
+	rm -f manual_pipes
 
-main:
-	g++ main.cpp -o main -I. -ggdb
+manual_pipes:
+	g++ manual_pipes.cpp -o manual_pipes \
+		-I . \
+		-I $(PREFIX)/include \
+		-l GLEW -l glut

@@ -1,16 +1,21 @@
 #include <macrobe/ring_buffer.h>
 #include <macrobe/pipe.h>
 #include <vector>
+
+#include <ogl/gpgpu.h>
+#include <ogl/glsl.cpp>
+
 using std::vector;
 
 int main() {
     RingBuffer<float> *rb = RingBuffer<float>::shared();
     
-    float xs[] = { 1, 3, 3, 7 };
-    rb->write(4, xs);
+    float xs[] = { 3, 1, 3, 3, 7 };
+    rb->write(5, xs);
     rb->close();
     
-    static Pipe<float,float> p1, p2;
+    Pipe<float,float> p1, p2, p3;
+    
     p1.tie(rb);
     if (!fork()) {
         while (int s = p1.tied->ready()) {
@@ -36,5 +41,17 @@ int main() {
         exit(0);
     }
     
+    p3.tie(p2);
+    if (!fork()) {
+        while (int s = p3.tied->ready()) {
+            for (int i = 0; i < s; i++) {
+                float x = p3.tied->read();
+                std::cout << "p3: " << x << std::endl;
+            }
+        }
+        p3.buffer->close();
+        exit(0);
+    }
+    
     return 0;
-}
+};
