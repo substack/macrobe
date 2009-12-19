@@ -1,0 +1,14 @@
+The program manual_pipes.cpp uses ring buffers in shared memory to implement an
+experimental pipeline-style for C++ accross multiple forks. The manual_pipes.cpp
+program provides a concrete representation upon which macros and operator
+overloading for operator| and operator% will be written and will eventually look
+something like:
+
+    List<float> xs, ys;
+    xs | map(float, x, x + 1) | gpu_map(pt, c, c = pt * 10) > ys;
+
+which will populate ys with the results of xs over the transforms given in map()
+and gpu_map().
+
+Follow this experiment as it evolves at:
+http://github.com/substack/macrobe

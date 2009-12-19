@@ -1,6 +1,7 @@
 #include <macrobe/ring_buffer.h>
 #include <macrobe/pipe.h>
 #include <vector>
+#include <sys/wait.h>
 
 #include <ogl/gpgpu.h>
 #include <ogl/glsl.cpp>
@@ -21,7 +22,10 @@ public:
     }
     
     bool full() { return filled >= width * height; }
-    ShaderPipe & operator<<(float x) { data[filled++] = x; }
+    ShaderPipe & operator<<(float x) {
+        data[filled++] = x;
+        return *this;
+    }
     
     void flush() {
         src = new gpu_array(e, "src", width, height, data, GL_LUMINANCE32F_ARB);
@@ -58,6 +62,7 @@ int main() {
         while (int s = p2.tied->ready()) {
             for (int i = 0; i < s; i++) {
                 float x = p2.tied->read();
+                std::cout << "p2: " << x << std::endl;
                 sp << x;
                 if (sp.full()) {
                     GPU_RUN(*sp.dst,
@@ -66,9 +71,18 @@ int main() {
                     );
                     sp.flush();
                     p2.buffer->write(sp.filled, sp.data);
+                    sp.filled = 0;
                 }
             }
         }
+        
+        GPU_RUN(*sp.dst,
+             float c = texture2D(src, location).r;
+             gl_FragColor = c * 0.9 + 0.1;
+        );
+        sp.flush();
+        
+        p2.buffer->write(sp.filled, sp.data);
         p2.buffer->close();
         exit(0);
     }
