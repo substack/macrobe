@@ -59,16 +59,17 @@ int main() {
     p2.tie(p1);
     if (!fork()) {
         ShaderPipe sp(1024,1024);
+        GPU_RUN(*sp.dst,
+             float c = texture2D(src, location).r;
+             gl_FragColor = c * 0.9 + 0.1;
+        );
+        
         while (int s = p2.tied->ready()) {
             for (int i = 0; i < s; i++) {
                 float x = p2.tied->read();
                 std::cout << "p2: " << x << std::endl;
                 sp << x;
                 if (sp.full()) {
-                    GPU_RUN(*sp.dst,
-                         float c = texture2D(src, location).r;
-                         gl_FragColor = c * 0.9 + 0.1;
-                    );
                     sp.flush();
                     p2.buffer->write(sp.filled, sp.data);
                     sp.filled = 0;
@@ -76,10 +77,6 @@ int main() {
             }
         }
         
-        GPU_RUN(*sp.dst,
-             float c = texture2D(src, location).r;
-             gl_FragColor = c * 0.9 + 0.1;
-        );
         sp.flush();
         
         p2.buffer->write(sp.filled, sp.data);

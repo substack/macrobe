@@ -9,14 +9,13 @@
 
 template <typename T>
 class RingBuffer {
-public:
+private:
     // same size as Linux kernel's pipe buffer
     static const size_t capacity = 65536;
     static const size_t size = capacity / sizeof(T);
     T buffer[size];
     
     size_t r_offset, w_offset;
-    bool closed;
     
     // private constructor since these should be built in shared memory only
     RingBuffer() {
@@ -26,6 +25,8 @@ public:
     }
     
 public:
+    bool closed; // should only read this
+    
     // build a ring buffer in shared memory
     static RingBuffer<T> * shared() {
         RingBuffer<T> *rb = (RingBuffer<T> *) mmap(
@@ -59,12 +60,21 @@ public:
         return (size + w_offset - r_offset) % size;
     }
     
+    // return how many elements can be read from the buffer without blocking
+    // and -1 when closed
+    size_t poll_ready() {
+        if (closed && r_offset == w_offset) return -1;
+        return (size + w_offset - r_offset) % size;
+    }
+    
+    // read a single element from the buffer
     T read() {
         T x = buffer[r_offset];
         ++(*this);
         return x;
     }
     
+    // read n elements from the buffer
     T * read(size_t n) {
         T *xs = new T[n];
         memcpy(xs, buffer, n * sizeof(T));
